@@ -1,4 +1,4 @@
-// returned from api.hiro.so
+// Raw response from Hiro ordinals API
 export type HiroApiResponse = {
   limit: number;
   offset: number;
@@ -30,30 +30,24 @@ export type HiroApiInscription = {
   timestamp: number;
 };
 
-// metadata for inscription stored in KV
+// Metadata for inscription stored in KV
 export type InscriptionMeta = {
-  // inscription
   id: string;
   number: number;
   address: string;
   content_type: string;
   content_length: number;
-  genesis_block_height: number; // "genesis height" | genesis_block_height
-  genesis_tx_id: string; // 'genesis transaction' | genesis_tx_id
-  timestamp: string; // timestamp in both, but string vs date
-  // news standard
+  genesis_block_height: number;
+  genesis_tx_id: string;
+  timestamp: string;
   last_updated: string;
   news_number?: number;
   news_author?: string;
 };
 
-export type InscriptionContent = {
-  content: Response;
-};
-
-// defining the news standard in TS
+// News standard schema (p=ons)
 export type OrdinalNews = {
-  p: string;
+  p: 'ons';
   op: string;
   title: string;
   url?: string;
@@ -61,4 +55,21 @@ export type OrdinalNews = {
   author?: string;
   authorAddress?: string;
   signature?: string;
+};
+
+// Combined news item with metadata
+export type NewsItem = {
+  meta: InscriptionMeta;
+  news: OrdinalNews;
+};
+
+// API response types
+export type NewsListResponse = {
+  items: NewsItem[];
+  total: number;
+};
+
+export type NewsDataResponse = {
+  meta: InscriptionMeta;
+  news: OrdinalNews;
 };
