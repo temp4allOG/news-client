@@ -1,4 +1,4 @@
-import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router';
+import { HeadContent, Link, Outlet, Scripts, createRootRoute } from '@tanstack/react-router';
 
 import appCss from '../styles.css?url';
 
@@ -21,6 +21,9 @@ export const Route = createRootRoute({
       { name: 'twitter:description', content: 'News inscribed on Bitcoin ordinals' },
     ],
     links: [
+      // Preload critical fonts
+      { rel: 'preload', href: '/fonts/ReallySansLarge-Bold.woff2', as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
+      { rel: 'preload', href: '/fonts/ReallySansSmall-Regular.woff2', as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
       { rel: 'stylesheet', href: appCss },
       { rel: 'icon', href: '/favicon.ico' },
       { rel: 'apple-touch-icon', href: '/apple-icon.png' },
@@ -54,16 +57,16 @@ function Header() {
   return (
     <header className="border-b border-brand-darkgray">
       <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-        <a href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <img src="/logos/1btc-news-orange.svg" alt="1btc.news" className="h-10" />
-        </a>
+        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <img src="/logos/1btc-news-orange.svg" alt="1btc.news" width={40} height={40} className="h-10 w-auto" />
+        </Link>
         <nav className="flex items-center gap-6">
-          <a href="/" className="text-gray-300 hover:text-white transition-colors">
+          <Link to="/" className="text-gray-300 hover:text-white transition-colors">
             News
-          </a>
-          <a href="/post" className="text-gray-300 hover:text-white transition-colors">
+          </Link>
+          <Link to="/post" className="text-gray-300 hover:text-white transition-colors">
             Post
-          </a>
+          </Link>
         </nav>
       </div>
     </header>

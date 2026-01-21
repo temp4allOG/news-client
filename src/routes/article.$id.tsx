@@ -1,12 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
-import type { NewsDataResponse } from '../lib/api-types';
-import { isVerifiedAuthor, formatDate, getReadingTime } from '../lib/utils';
-import { VerifiedBadge } from '../components/verified-badge';
+import { lazy, Suspense, useState, useEffect } from 'react';
+import type { NewsItem } from '../lib/api-types';
+import { API_BASE } from '../lib/constants';
+import { formatDate, getReadingTime, getMetaDescription } from '../lib/utils';
+import { AuthorDisplay } from '../components/author-display';
+import { ErrorState } from '../components/error-state';
+import { ArticleSkeleton } from '../components/loading-skeleton';
 
-const API_BASE = 'https://inscribe.news/api';
+// Lazy load markdown rendering (~73KB savings)
+const ReactMarkdown = lazy(() => import('react-markdown'));
 
 export const Route = createFileRoute('/article/$id')({
   loader: async ({ params }) => {
@@ -14,16 +16,14 @@ export const Route = createFileRoute('/article/$id')({
     if (!response.ok) {
       throw new Error('Article not found');
     }
-    const data: NewsDataResponse = await response.json();
+    const data: NewsItem = await response.json();
     return data;
   },
 
   head: ({ loaderData }) => {
     const { news, meta } = loaderData;
     const title = `${news.title} | 1btc.news`;
-    const description = news.body
-      ? news.body.slice(0, 160).replace(/\n/g, ' ')
-      : 'News inscribed on Bitcoin ordinals';
+    const description = getMetaDescription(news.body, 'News inscribed on Bitcoin ordinals');
 
     return {
       meta: [
@@ -46,48 +46,21 @@ export const Route = createFileRoute('/article/$id')({
     };
   },
 
-  pendingComponent: LoadingState,
-  errorComponent: ErrorState,
+  pendingComponent: ArticleSkeleton,
+  errorComponent: ({ error }) => (
+    <ErrorState
+      icon="404"
+      title="Article not found"
+      message={error.message}
+      ctaText="Back to Home"
+      ctaHref="/"
+    />
+  ),
   component: ArticlePage,
 });
 
-function LoadingState() {
-  return (
-    <article className="max-w-3xl mx-auto px-4 py-8">
-      <header className="mb-8">
-        <div className="h-10 w-3/4 bg-brand-darkgray rounded animate-pulse mb-4" />
-        <div className="h-5 w-1/2 bg-brand-darkgray rounded animate-pulse" />
-      </header>
-      <div className="space-y-4">
-        <div className="h-4 w-full bg-brand-darkgray rounded animate-pulse" />
-        <div className="h-4 w-full bg-brand-darkgray rounded animate-pulse" />
-        <div className="h-4 w-3/4 bg-brand-darkgray rounded animate-pulse" />
-        <div className="h-4 w-full bg-brand-darkgray rounded animate-pulse" />
-        <div className="h-4 w-5/6 bg-brand-darkgray rounded animate-pulse" />
-      </div>
-    </article>
-  );
-}
-
-function ErrorState({ error }: { error: Error }) {
-  return (
-    <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-      <div className="text-brand-orange text-6xl mb-4">404</div>
-      <h1 className="text-2xl font-bold text-white mb-2">Article not found</h1>
-      <p className="text-brand-gray mb-6">{error.message}</p>
-      <a
-        href="/"
-        className="inline-block px-6 py-2 bg-brand-orange text-white rounded-lg hover:bg-bitcoin-orange transition-colors"
-      >
-        Back to Home
-      </a>
-    </div>
-  );
-}
-
 function ArticlePage() {
   const { news, meta } = Route.useLoaderData();
-  const verified = isVerifiedAuthor(news.author);
   const readingTime = news.body ? getReadingTime(news.body) : 0;
 
   return (
@@ -95,25 +68,14 @@ function ArticlePage() {
       <header className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">{news.title}</h1>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-brand-gray text-sm">
-          {news.author && (
-            <span className="flex items-center gap-1.5">
-              By <span className="text-white">{news.author}</span>
-              {verified && <VerifiedBadge />}
-            </span>
-          )}
+          {news.author && <AuthorDisplay author={news.author} />}
           <span>{formatDate(meta.timestamp)}</span>
           {meta.news_number && <span className="text-brand-orange">#{meta.news_number}</span>}
           {readingTime > 0 && <span>{readingTime} min read</span>}
         </div>
       </header>
 
-      {news.body && (
-        <div className="prose-news">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-            {news.body}
-          </ReactMarkdown>
-        </div>
-      )}
+      {news.body && <MarkdownBody content={news.body} />}
 
       {news.url && (
         <div className="mt-8 pt-8 border-t border-brand-darkgray">
@@ -124,14 +86,7 @@ function ArticlePage() {
             className="inline-flex items-center gap-2 text-brand-orange hover:text-bitcoin-orange"
           >
             Read original source
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
+            <ExternalLinkIcon />
           </a>
         </div>
       )}
@@ -165,5 +120,53 @@ function ArticlePage() {
         </div>
       </footer>
     </article>
+  );
+}
+
+function MarkdownBody({ content }: { content: string }) {
+  return (
+    <Suspense fallback={<div className="prose-news animate-pulse">Loading content...</div>}>
+      <MarkdownRenderer content={content} />
+    </Suspense>
+  );
+}
+
+type MarkdownPlugins = {
+  remarkGfm: typeof import('remark-gfm').default;
+  rehypeRaw: typeof import('rehype-raw').default;
+};
+
+function MarkdownRenderer({ content }: { content: string }) {
+  const [plugins, setPlugins] = useState<MarkdownPlugins | null>(null);
+
+  useEffect(() => {
+    Promise.all([import('remark-gfm'), import('rehype-raw')]).then(([gfm, raw]) => {
+      setPlugins({ remarkGfm: gfm.default, rehypeRaw: raw.default });
+    });
+  }, []);
+
+  if (!plugins) {
+    return <div className="prose-news">Loading...</div>;
+  }
+
+  return (
+    <div className="prose-news">
+      <ReactMarkdown remarkPlugins={[plugins.remarkGfm]} rehypePlugins={[plugins.rehypeRaw]}>
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+function ExternalLinkIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+      />
+    </svg>
   );
 }

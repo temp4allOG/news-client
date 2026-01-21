@@ -71,6 +71,15 @@ a {
   @apply text-brand-orange hover:text-bitcoin-orange transition-colors;
 }
 
+/* Button styles */
+.btn-primary {
+  @apply px-6 py-2 bg-brand-orange text-white rounded-lg hover:bg-bitcoin-orange transition-colors;
+}
+
+.btn-outline {
+  @apply px-4 py-2 border border-brand-orange text-brand-orange rounded-lg hover:bg-brand-orange hover:text-white transition-colors;
+}
+
 /* Markdown content styles */
 .prose-news {
   @apply text-gray-200 leading-relaxed;

@@ -48,7 +48,7 @@ export type InscriptionMeta = {
 // News standard schema (p=ons)
 export type OrdinalNews = {
   p: 'ons';
-  op: string;
+  op: 'post' | 'reply' | 'repost';
   title: string;
   url?: string;
   body?: string;
@@ -57,19 +57,8 @@ export type OrdinalNews = {
   signature?: string;
 };
 
-// Combined news item with metadata
+// Combined news item with metadata (used for both list and detail responses)
 export type NewsItem = {
-  meta: InscriptionMeta;
-  news: OrdinalNews;
-};
-
-// API response types
-export type NewsListResponse = {
-  items: NewsItem[];
-  total: number;
-};
-
-export type NewsDataResponse = {
   meta: InscriptionMeta;
   news: OrdinalNews;
 };

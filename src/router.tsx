@@ -6,7 +6,8 @@ export const getRouter = () => {
   const router = createRouter({
     routeTree,
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    // Cache preloaded data for 30 seconds to benefit from hover preloading
+    defaultPreloadStaleTime: 30000,
   });
 
   return router;
