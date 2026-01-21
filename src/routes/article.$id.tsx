@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import type { NewsDataResponse } from '../lib/api-types';
+import { isVerifiedAuthor, formatDate, getReadingTime } from '../lib/utils';
+import { VerifiedBadge } from '../components/verified-badge';
 
 const API_BASE = 'https://inscribe.news/api';
 
@@ -44,33 +46,64 @@ export const Route = createFileRoute('/article/$id')({
     };
   },
 
+  pendingComponent: LoadingState,
+  errorComponent: ErrorState,
   component: ArticlePage,
 });
 
+function LoadingState() {
+  return (
+    <article className="max-w-3xl mx-auto px-4 py-8">
+      <header className="mb-8">
+        <div className="h-10 w-3/4 bg-brand-darkgray rounded animate-pulse mb-4" />
+        <div className="h-5 w-1/2 bg-brand-darkgray rounded animate-pulse" />
+      </header>
+      <div className="space-y-4">
+        <div className="h-4 w-full bg-brand-darkgray rounded animate-pulse" />
+        <div className="h-4 w-full bg-brand-darkgray rounded animate-pulse" />
+        <div className="h-4 w-3/4 bg-brand-darkgray rounded animate-pulse" />
+        <div className="h-4 w-full bg-brand-darkgray rounded animate-pulse" />
+        <div className="h-4 w-5/6 bg-brand-darkgray rounded animate-pulse" />
+      </div>
+    </article>
+  );
+}
+
+function ErrorState({ error }: { error: Error }) {
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+      <div className="text-brand-orange text-6xl mb-4">404</div>
+      <h1 className="text-2xl font-bold text-white mb-2">Article not found</h1>
+      <p className="text-brand-gray mb-6">{error.message}</p>
+      <a
+        href="/"
+        className="inline-block px-6 py-2 bg-brand-orange text-white rounded-lg hover:bg-bitcoin-orange transition-colors"
+      >
+        Back to Home
+      </a>
+    </div>
+  );
+}
+
 function ArticlePage() {
   const { news, meta } = Route.useLoaderData();
-
-  const date = new Date(meta.timestamp).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const verified = isVerifiedAuthor(news.author);
+  const readingTime = news.body ? getReadingTime(news.body) : 0;
 
   return (
     <article className="max-w-3xl mx-auto px-4 py-8">
       <header className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">{news.title}</h1>
-        <div className="flex flex-wrap items-center gap-4 text-brand-gray text-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-brand-gray text-sm">
           {news.author && (
-            <span className="flex items-center gap-1">
-              <span>By</span>
-              <span className="text-white">{news.author}</span>
+            <span className="flex items-center gap-1.5">
+              By <span className="text-white">{news.author}</span>
+              {verified && <VerifiedBadge />}
             </span>
           )}
-          <span>{date}</span>
-          {meta.news_number && (
-            <span className="text-brand-orange">#{meta.news_number}</span>
-          )}
+          <span>{formatDate(meta.timestamp)}</span>
+          {meta.news_number && <span className="text-brand-orange">#{meta.news_number}</span>}
+          {readingTime > 0 && <span>{readingTime} min read</span>}
         </div>
       </header>
 
