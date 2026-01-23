@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { lazy, Suspense, useState, useEffect } from 'react';
-import type { NewsItem } from '../lib/api-types';
+import type { NewsItem, NewsDataResponse } from '../lib/api-types';
 import { API_BASE } from '../lib/constants';
 import { formatDate, getReadingTime, getMetaDescription } from '../lib/utils';
 import { AuthorDisplay } from '../components/author-display';
@@ -10,14 +10,44 @@ import { ArticleSkeleton } from '../components/loading-skeleton';
 // Lazy load markdown rendering (~73KB savings)
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
+// Transform flat API response to NewsItem format
+function transformResponse(data: NewsDataResponse): NewsItem {
+  return {
+    meta: {
+      id: data.id,
+      number: data.number,
+      address: data.address,
+      content_type: data.content_type,
+      content_length: data.content_length,
+      genesis_block_height: data.genesis_block_height,
+      genesis_tx_id: data.genesis_tx_id,
+      timestamp: data.timestamp,
+      last_updated: data.last_updated,
+    },
+    news: {
+      p: data.p,
+      op: data.op,
+      title: data.title,
+      url: data.url,
+      body: data.body,
+      author: data.author,
+    },
+  };
+}
+
 export const Route = createFileRoute('/article/$id')({
   loader: async ({ params }) => {
     const response = await fetch(`${API_BASE}/data/${params.id}`);
     if (!response.ok) {
       throw new Error('Article not found');
     }
-    const data: NewsItem = await response.json();
-    return data;
+    const text = await response.text();
+    // Handle non-JSON responses (e.g., Cloudflare errors)
+    if (!text.startsWith('{')) {
+      throw new Error('Article not found');
+    }
+    const data: NewsDataResponse = JSON.parse(text);
+    return transformResponse(data);
   },
 
   head: ({ loaderData }) => {

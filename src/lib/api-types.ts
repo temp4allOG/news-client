@@ -57,8 +57,20 @@ export type OrdinalNews = {
   signature?: string;
 };
 
-// Combined news item with metadata (used for both list and detail responses)
+// Combined news item with metadata (used internally for display)
 export type NewsItem = {
   meta: InscriptionMeta;
   news: OrdinalNews;
 };
+
+// API response for /api/data/ord-news (list endpoint)
+export type NewsListResponse = {
+  list_complete: boolean;
+  keys: {
+    name: string;
+    metadata: InscriptionMeta;
+  }[];
+};
+
+// API response for /api/data/{id} (single item - flat structure)
+export type NewsDataResponse = InscriptionMeta & OrdinalNews;

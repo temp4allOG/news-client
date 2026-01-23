@@ -1,19 +1,64 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
-import type { NewsItem } from '../lib/api-types';
+import type { NewsItem, NewsListResponse, NewsDataResponse } from '../lib/api-types';
 import { API_BASE } from '../lib/constants';
 import { formatDate, truncate } from '../lib/utils';
 import { AuthorDisplay } from '../components/author-display';
 import { ErrorState } from '../components/error-state';
 import { NewsListSkeleton } from '../components/loading-skeleton';
 
+const ITEMS_PER_PAGE = 20;
+
 export const Route = createFileRoute('/')({
   loader: async () => {
-    const response = await fetch(`${API_BASE}/data/`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch news');
+    // Fetch list of news metadata
+    const listResponse = await fetch(`${API_BASE}/data/ord-news`);
+    if (!listResponse.ok) {
+      throw new Error('Failed to fetch news list');
     }
-    const data = await response.json();
-    return { items: data as NewsItem[] };
+    const listData: NewsListResponse = await listResponse.json();
+
+    // Take the most recent items (list is ordered by inscription number, newest at end)
+    const recentKeys = listData.keys.slice(-ITEMS_PER_PAGE).reverse();
+
+    // Fetch full content for each item in parallel
+    const items = await Promise.all(
+      recentKeys.map(async (key) => {
+        try {
+          const response = await fetch(`${API_BASE}/data/${key.metadata.id}`);
+          if (!response.ok) return null;
+          const text = await response.text();
+          // Handle non-JSON responses (e.g., Cloudflare errors)
+          if (!text.startsWith('{')) return null;
+          const data: NewsDataResponse = JSON.parse(text);
+          // Transform flat response to NewsItem format
+          return {
+            meta: {
+              id: data.id,
+              number: data.number,
+              address: data.address,
+              content_type: data.content_type,
+              content_length: data.content_length,
+              genesis_block_height: data.genesis_block_height,
+              genesis_tx_id: data.genesis_tx_id,
+              timestamp: data.timestamp,
+              last_updated: data.last_updated,
+            },
+            news: {
+              p: data.p,
+              op: data.op,
+              title: data.title,
+              url: data.url,
+              body: data.body,
+              author: data.author,
+            },
+          } as NewsItem;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    return { items: items.filter((item): item is NewsItem => item !== null) };
   },
 
   pendingComponent: NewsListSkeleton,
